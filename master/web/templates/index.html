@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+{% block content %}
+
+<!-- Content Wrapper. Contains page content -->
+<div class="content-wrapper">
+    <!-- Content Header (Page header) -->
+    <section class="content-header">
+        <h1>
+            <!--运行状态-->
+            <small>Runtime Status</small>
+        </h1>
+        <ol class="breadcrumb">
+            <li><a href="#"><i class="fa fa-dashboard"></i>运行状态</a></li>
+        </ol>
+    </section>
+
+    <!-- Main content -->
+    <section class="content container-fluid">
+
+        <div class="row">
+            <div class="col-md-3 col-sm-6 col-xs-12">
+                <div class="info-box">
+                        <span class="info-box-icon bg-teal">
+                            <i class="fa fa-server"></i>
+                        </span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">Slave 节点数</span>
+                        <span class="info-box-number" id="slave_total">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3 col-sm-6 col-xs-12">
+                <div class="info-box">
+                        <span class="info-box-icon bg-aqua">
+                            <i class="fa fa-tasks"></i>
+                        </span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">任务总数</span>
+                        <span class="info-box-number" id="task_total">0</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6 col-xs-12">
+                <div class="info-box">
+                        <span class="info-box-icon bg-yellow">
+                            <i class="fa fa-hourglass-half"></i>
+                        </span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">未完成</span>
+                        <span class="info-box-number" id="task_undo_total">0</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6 col-xs-12">
+                <div class="info-box">
+                        <span class="info-box-icon bg-red">
+                            <i class="ion ion-bug"></i>
+                        </span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">发现漏洞</span>
+                        <span class="info-box-number" id="bug_total">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-12">
+                <div class="box no-border">
+                    <div class="box-header with-border">
+                        <h3 class="box-title">系统运行状态</h3>
+                        <div class="box-tools pull-right">
+                            <button type="button" class="btn btn-box-tool" data-widget="collapse">
+                                <i class="fa fa-minus"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="box-body">
+                        <div class="row">
+                            <div class="chart">
+                                <canvas id="taskMonitor" height="300px"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="box-footer">
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="description-block" style="padding: 8px 32px 0 32px">
+                                    <div class="description-header">
+                                        <div class="progress progress-striped active">
+                                            <div class="progress-bar progress-bar-success" style="width: 30%;"
+                                                 id="progress_bar">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="text-green">
+                                        进度 <span id="progress_percent">0</span>%
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+
+{% endblock %}
+
+{% block script %}
+
+<script>
+
+    //获取系统状态
+    function refreshStatus() {
+        $.ajax({
+            type: "GET",
+            url: "{{ url_for("api_system_status") }}",
+            success: function (status) {
+                $("#slave_total").text(status["slave_total"])
+                $("#task_total").text(status["task_total"])
+                $("#task_undo_total").text(status["task_undo_total"])
+                $("#bug_total").text(status["bug_total"])
+                $("#progress_percent").text(status["progress_percent"])
+                $("#progress_bar").width(status["progress_percent"] + '%')
+            }
+        })
+    };
+
+    //定时刷新系统状态
+    refreshStatus();
+    setInterval(refreshStatus, 3000);
+
+
+    var taskMonitorNode = $("#taskMonitor");
+    taskMonitorChar = new Chart(taskMonitorNode, {
+        type: 'line',
+        data: {
+            datasets: [{
+                label: '新增任务数',
+                borderColor: 'rgba(57,204,204,0.8)',
+                backgroundColor: 'rgba(57,204,204,0.4)',
+                data: [0, 0, 0, 0, 0, 0, 0]
+            }, {
+                label: '完成任务数',
+                borderColor: 'rgba(0,255,153,0.8)',
+                backgroundColor: 'rgba(0,255,153,0.3)',
+                data: [0, 0, 0, 0, 0, 0, 0]
+            }, {
+                label: 'BUG发现数',
+                borderColor: 'rgba(204,0,51,0.8)',
+                backgroundColor: 'rgba(204,0,51,0.6)',
+                data: [0, 0, 0, 0, 0, 0, 0]
+            }],
+            labels: [
+                moment().subtract(42, 'h').format('HH:mm'),
+                moment().subtract(36, 'h').format('HH:mm'),
+                moment().subtract(24, 'h').format('HH:mm'),
+                moment().subtract(18, 'h').format('HH:mm'),
+                moment().subtract(12, 'h').format('HH:mm'),
+                moment().subtract(6, 'h').format('HH:mm'),
+                '当前'
+            ]
+        },
+        options: {
+            layout: {
+                padding: {
+                    left: 24,
+                    right: 32
+                }
+            }
+        }
+    });
+
+    // 更新图表数据
+    function refreshCharts() {
+        $.ajax({
+            type: "GET",
+            url: "/api/charts",
+            dataType: "JSON",
+            success: function (charts_data) {
+                taskMonitorChar.data.datasets[0].data[0] = charts_data.new_task_before_42h;
+                taskMonitorChar.data.datasets[0].data[1] = charts_data.new_task_before_36h;
+                taskMonitorChar.data.datasets[0].data[2] = charts_data.new_task_before_30h;
+                taskMonitorChar.data.datasets[0].data[3] = charts_data.new_task_before_24h;
+                taskMonitorChar.data.datasets[0].data[4] = charts_data.new_task_before_18h;
+                taskMonitorChar.data.datasets[0].data[5] = charts_data.new_task_before_12h;
+                taskMonitorChar.data.datasets[0].data[6] = charts_data.new_task_now;
+
+                taskMonitorChar.data.datasets[1].data[0] = charts_data.done_task_before_42h;
+                taskMonitorChar.data.datasets[1].data[1] = charts_data.done_task_before_36h;
+                taskMonitorChar.data.datasets[1].data[2] = charts_data.done_task_before_30h;
+                taskMonitorChar.data.datasets[1].data[3] = charts_data.done_task_before_24h;
+                taskMonitorChar.data.datasets[1].data[4] = charts_data.done_task_before_18h;
+                taskMonitorChar.data.datasets[1].data[5] = charts_data.done_task_before_12h;
+                taskMonitorChar.data.datasets[1].data[6] = charts_data.done_task_now;
+
+                taskMonitorChar.data.datasets[2].data[0] = charts_data.bug_before_42h;
+                taskMonitorChar.data.datasets[2].data[1] = charts_data.bug_before_36h;
+                taskMonitorChar.data.datasets[2].data[2] = charts_data.bug_before_30h;
+                taskMonitorChar.data.datasets[2].data[3] = charts_data.bug_before_24h;
+                taskMonitorChar.data.datasets[2].data[4] = charts_data.bug_before_18h;
+                taskMonitorChar.data.datasets[2].data[5] = charts_data.bug_before_12h;
+                taskMonitorChar.data.datasets[2].data[6] = charts_data.bug_now;
+
+                taskMonitorChar.update();
+            }
+        })
+    }
+
+    refreshCharts();
+    setInterval(refreshCharts, 3000);
+
+</script>
+{% endblock %}

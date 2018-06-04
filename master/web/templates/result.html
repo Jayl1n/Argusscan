@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+{% block content %}
+<!-- Content Wrapper. Contains page content -->
+<div class="content-wrapper">
+    <!-- Content Header (Page header) -->
+    <section class="content-header">
+        <h1>
+            <!--扫描结果-->
+            <small>Result Report</small>
+        </h1>
+        <ol class="breadcrumb">
+            <li><a href="#"><i class="fa fa-bar-chart"></i>扫描结果</a></li>
+        </ol>
+    </section>
+
+    <!-- Main content -->
+    <section class="content container-fluid">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="box box-primary">
+                    <div class="box-header ">
+                        <div class="box-tools pull-right">
+                            <button type="button" class="btn btn-box-tool" data-widget="collapse"><i
+                                    class="fa fa-minus"></i></button>
+                        </div>
+                    </div>
+                    <div class="box-body">
+                        <table id="resultDataTable" class="table table-bordered">
+                            <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>方法</th>
+                                <th>HOST</th>
+                                <th>存在漏洞</th>
+                                <th>完成时间</th>
+                                <th>操作</th>
+                            </tr>
+                            </thead>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+
+<!--详情 模态框-->
+<div class="modal" tabindex="-1" role="dialog" id="detail_modal">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="detail_id"></h4>
+            </div>
+            <div class="modal-body">
+                <div class="container">
+                    <dl class="dl-horizontal row">
+                        <dt>方法</dt>
+                        <dd id="detail_method"></dd>
+                    </dl>
+                    <dl class="dl-horizontal row">
+                        <dt>HOST</dt>
+                        <dd id="detail_host"></dd>
+                    </dl>
+                    <dl class="dl-horizontal row">
+                        <dt>路径</dt>
+                        <dd>
+                            <textarea readonly id="detail_path" rows="1" class="col-md-8"></textarea>
+                        </dd>
+                    </dl>
+                    <dl class="dl-horizontal row">
+                        <dt>COOKIE</dt>
+                        <dd>
+                            <textarea readonly id="detail_cookie" rows="2" class="col-md-8"></textarea>
+                        </dd>
+                    </dl>
+                    <dl class="dl-horizontal row">
+                        <dt>DATA</dt>
+                        <dd>
+                            <textarea readonly id="detail_data" rows="2" class="col-md-8"></textarea>
+                        </dd>
+                    </dl>
+                    <dl class="dl-horizontal row">
+                        <dt>存在漏洞</dt>
+                        <dd id="detail_vulnerable"></dd>
+                    </dl>
+                    <dl class="dl-horizontal row" id="detail_dl_result" hidden>
+                        <dt>扫描结果</dt>
+                        <dd>
+                            <textarea readonly id="detail_result" rows="5" class="col-md-8"></textarea>
+                        </dd>
+                    </dl>
+                    <dl class="dl-horizontal row">
+                        <dt>执行节点</dt>
+                        <dd id="detail_slave"></dd>
+                    </dl>
+                    <dl class="dl-horizontal row">
+                        <dt>完成时间</dt>
+                        <dd id="detail_done_time"></dd>
+                    </dl>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<script>
+    $(function () {
+        $("#resultDataTable").DataTable({
+            paging: true,
+            lengthChange: false,
+            searching: false,
+            ordering: true,
+            info: true,
+            autoWidth: true,
+            language: {
+                "sProcessing": "处理中...",
+                "sLengthMenu": "显示 _MENU_ 项结果",
+                "sZeroRecords": "没有匹配结果",
+                "sInfo": "显示第 <b>_START_</b> 至 <b>_END_</b> 项结果，共 <b>_TOTAL_</b> 项",
+                "sInfoEmpty": "无结果",
+                "sInfoFiltered": "",
+                "sInfoPostFix": "",
+                "sSearch": "搜索:",
+                "sUrl": "",
+                "sEmptyTable": "表中数据为空",
+                "sLoadingRecords": "载入中...",
+                "sInfoThousands": ",",
+                "oPaginate": {
+                    "sFirst": "首页",
+                    "sPrevious": "上页",
+                    "sNext": "下页",
+                    "sLast": "末页"
+                },
+                "oAria": {
+                    "sSortAscending": ": 以升序排列此列",
+                    "sSortDescending": ": 以降序排列此列"
+                },
+            },
+
+            sAjaxDataProp: "aData",
+            sAjaxSource: "api/result",
+            serverSide: true,
+            aoColumns: [
+                {
+                    "mDataProp": "id",
+                    "sClass": "center"
+                },
+                {
+                    "mDataProp": "method"
+                },
+                {
+                    "mDataProp": "host"
+                },
+                {
+                    "mDataProp": "vulnerable"
+                },
+                {
+                    "mDataProp": "done_time"
+                },
+                {
+                    "mDataProp": null,
+                    "render": function (data, type, row) {
+                        detail_btn = data.vulnerable === '否' ?
+                            "<button class='btn btn-primary' data-toggle='modal' onclick='getDetail(" + data.id + ")'>详情</button> "
+                            : "<button class='btn btn-danger' data-toggle='modal' onclick='getDetail(" + data.id + ")'>详情</button> "
+                        return detail_btn + "<button class='btn btn-default' data-toggle='modal' onclick='deleteTask(" + data.id + ")'>删除</button> "
+                    }
+                }
+            ],
+
+            fnServerData: function (url, data, fnCallBack) {
+                $.ajax({
+                    url: url,
+                    type: "POST",
+                    dataType: "JSON",
+                    data: {
+                        "aoData": JSON.stringify(data)
+                    },
+                    success: function (result) {
+                        fnCallBack(result)
+                    }
+                })
+            }
+        })
+    });
+
+    //获取详情数据并弹出模态框
+    function getDetail(id) {
+        $.ajax({
+            url: "/api/detail/" + id,
+            type: "GET",
+            dataType: "JSON",
+            success: function (detail) {
+                $('#detail_id').text('ID: ' + id);
+                $("#detail_method").text(detail.method);
+                $("#detail_host").text(detail.host);
+                $("#detail_cookie").text(detail.cookie);
+                $("#detail_path").text(detail.path);
+                $("#detail_slave").text(detail.slave_id);
+                $("#detail_data").text(detail.data);
+                $("#detail_vulnerable").text(detail.vulnerable);
+                $("#detail_done_time").text(detail.done_time);
+
+                if (detail.result !== null) {
+                    $("#detail_dl_result").show();
+                    $("#detail_result").text(JSON.stringify(JSON.parse(detail.result), null, 2));
+                } else {
+                    $("#detail_dl_result").hide();
+                }
+                $('#detail_modal').modal('show');
+            }
+        })
+    }
+
+    //删除结果
+    function deleteTask(id) {
+        $.ajax({
+            url: "/api/task/remove/" + id,
+            type: "GET",
+            success: function () {
+                //刷新DataTable
+                $("#resultDataTable").DataTable().ajax.reload();
+            }
+        })
+    }
+
+</script>
+
+{% endblock %}
+
